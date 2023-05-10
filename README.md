@@ -1,5 +1,5 @@
-# Voxel-Engine
-Programming a new voxel Engine for fun !
+# Voxelization
+## Programming a new voxel Engine for fun !
 
 A voxel is a cube (like a pixel for a square !)
 
