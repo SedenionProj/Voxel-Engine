@@ -6,6 +6,8 @@ out vec4 FragColor;
 uniform float time;
 uniform vec3 rayOrigin;
 uniform int number;
+uniform int scroll;
+uniform int mouse;
 
 in vec3 col;
 
@@ -29,7 +31,7 @@ layout (std140, binding = 1) uniform Matrices
 
 layout(std430, binding = 5) buffer buf
 {
-    vec4 S[200][200][200];
+    float S[];
 };
 
 vec3 random(vec2 st) {
@@ -47,8 +49,8 @@ Hit miss(Ray ray){
 };
 
 bool getVoxel(ivec3 c) {
-    //if (0<c.x && c.x<number && 0<c.y && c.y<number && 0<c.z && c.z<number)
-	return S[c.x][c.y][c.z].w == 1;
+    if (0<c.x && c.x<number && 0<c.y && c.y<number && 0<c.z && c.z<number)
+	    return S[number*number*c.z+number*c.y+c.x]==1;
 }
 
 void main()
@@ -63,6 +65,8 @@ void main()
     ray.direction = rayDir;
     int bounces = 0;
 
+    float destroyR = pow(float(scroll)/100,2);
+
     bvec3 mask;
 
     ivec3 map = ivec3(floor(ray.origin+0.f));
@@ -72,7 +76,7 @@ void main()
 
     bool found = false;
 
-    for(int i = 0; i< 10000; i++){
+    for(int i = 0; i< 1000; i++){
         if (sideDist.x < sideDist.y) {
 			if (sideDist.x < sideDist.z) {
 				sideDist.x += deltaDist.x;
@@ -99,22 +103,33 @@ void main()
 		}
         if(getVoxel(map)){
             found = true;
+            
+            
             break;
         }
     }
     if(found){
+        if(mouse == 1 && dot(pos,pos)<destroyR){
+            S[number*number*map.z+number*map.y+map.x] = 0;
+        }
+        if(mouse == 2 && dot(pos,pos)<destroyR){
+            S[number*number*(map.z-int(round(rayDir.z)))+number*(map.y-int(round(rayDir.y)))+(map.x-int(round(rayDir.x)))] = 1;
+        }
         if (mask.x) {
-		color = vec3(0.5);
-	}
+            
+		    color = vec3(0.5);
+	    }
 	    if (mask.y) {
-		color = vec3(1.0);
-	}
+
+		    color = vec3(1.0);
+	    }
 	    if (mask.z) {
-		color = vec3(0.75);
-	}
+
+		    color = vec3(0.75);
+	    }
     }
     
+    FragColor = vec4(0,color.x,0, 1.0f);
 
-    FragColor = vec4(color , 1.0f);
     
 }

@@ -1,8 +1,28 @@
 ﻿#include "libs/R/R/R.h"
+int mouse = 0;
+int scroll = 0.f;
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+        mouse = 1;
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+        mouse = 2;
+    else
+        mouse = 0;
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    scroll += yoffset;
+    if (scroll < 0)
+        scroll = 0;
+    else if (scroll > 100)
+        scroll = 100;
+}
 
 int main(void)
 {
-    R::win::init();
+    R::win::init("voxel",1280,720);
     R::win::initGui();
 
     float vertices[] =
@@ -28,29 +48,40 @@ int main(void)
     R::PerspectiveCamera cam(1);
     cam.setDirection(45, 0.0);
 
-    std::vector<glm::vec4> S;
-    int number = 200;
-
+    std::vector<float> S;
+    int number = 400;
+    // noise glm::fract(sin(glm::dot(glm::vec3(x,y,z), glm::vec3(12.9898, 78.233,78))) * 43758.5453123)<0.5f
     for (int x = 0; x < number; x++)
         for (int y = 0; y < number; y++)
             for (int z = 0; z < number; z++) {
-                if (glm::fract(sin(glm::dot(glm::vec3(x,y,z), glm::vec3(12.9898, 78.233,78))) * 43758.5453123)<0.001f) {
-                    S.push_back(glm::vec4(0, 0, 0, 1));
+                /*if (number*0.3<z and z<number*0.6 and number * 0.3 < y and y < number * 0.6 and number * 0.3 < x and x < number * 0.6) {
+                    S.push_back(1);
                 }
                 else {
-                    S.push_back(glm::vec4(0, 0, 0, 0));
-                }
+                    S.push_back(0);
+                }*/
+                S.push_back(1);
 
             }
 
-    R::ShaderStorageBuffer SSBO(sizeof(glm::vec4)*number*number*number, S, 5);
+    R::ShaderStorageBuffer SSBO(sizeof(float)*number*number*number);
+    SSBO.data(0, S, sizeof(float) * number * number * number,5);
     
     glfwSetCursorPosCallback(R::win::window, R::PerspectiveCamera::mouse_callback);
 
     bool hold = false;
+    
     float t = 0;
     float r = 0;
     R::win::hideCursor();
+    glfwSetMouseButtonCallback(R::win::window, mouse_button_callback);
+    glfwSetScrollCallback(R::win::window, scroll_callback);
+
+
+    GLint size;
+    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &size);
+    std::cout << "GL_MAX_SHADER_STORAGE_BLOCK_SIZE is " << size << " bytes." << std::endl;
+
     while (R::win::running)
     {
         
@@ -70,8 +101,10 @@ int main(void)
 
         r = 100.0f * R::dt;
         t += 0.001;
-        if (glfwGetKey(R::win::window, GLFW_KEY_L) == GLFW_PRESS)
-            r = 10000.0f * R::dt;
+        if (glfwGetKey(R::win::window, GLFW_KEY_Q) == GLFW_PRESS)
+            r = 10.0f * R::dt;
+        if (glfwGetKey(R::win::window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+            r = 1000.0f * R::dt;
         if (glfwGetKey(R::win::window, GLFW_KEY_W) == GLFW_PRESS)
             cam.pos += glm::normalize(glm::vec3(1.0, 0.0, 1.0) * cam.front) * r;
         if (glfwGetKey(R::win::window, GLFW_KEY_S) == GLFW_PRESS)
@@ -87,13 +120,23 @@ int main(void)
         if (glfwGetKey(R::win::window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetInputMode(R::win::window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
+
         shaders.setFloat("time", t);
+        shaders.setInt("scroll", scroll);
+        shaders.setInt("mouse", mouse);
         shaders.setInt("number", number);
         shaders.setVec3("rayOrigin", cam.pos.x, cam.pos.y, cam.pos.z);
 
         R::renderer::draw(va,ib,shaders);
 
-        ImGui::Text(std::to_string(sizeof(glm::vec4)).c_str());
+        //ImGui::Text(std::to_string(1/R::dt).c_str());
+        ImGui::Text(std::to_string(scroll).c_str());
+        ImGui::Text(std::to_string(cam.pos.x).c_str());
+        ImGui::Text(std::to_string(cam.pos.y).c_str());
+        ImGui::Text(std::to_string(cam.pos.z).c_str());
+        ImGui::Text(std::to_string(cam.front.x).c_str());
+        ImGui::Text(std::to_string(cam.front.y).c_str());
+        ImGui::Text(std::to_string(cam.front.z).c_str());
 
         R::win::drawGui();
         R::win::display();
