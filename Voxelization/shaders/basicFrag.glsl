@@ -2,60 +2,42 @@
 out vec4 FragColor;
 
 
-
+// from cpu to gpu
 uniform float time;
 uniform vec3 rayOrigin;
 uniform int number;
 uniform int scroll;
 uniform int mouse;
 
-in vec3 col;
-
 struct Ray{
     vec3 origin;
     vec3 direction;
 };
 
-struct Hit{
-    float hitDist;
-    vec3 worldPos;
-    vec3 normalPos;
-    int objIndex;
-};
 
 layout (std140, binding = 1) uniform Matrices
 {
+    // matrices for camera
     mat4 projection;
     mat4 view;
 };
 
 layout(std430, binding = 5) buffer buf
 {
+    // voxel grid
     float S[];
 };
 
-vec3 random(vec2 st) {
-    vec3 rand;
-    rand.x = fract(sin(time*dot(st.xy,vec2(12.9898,78.233)))*43758.5453123);
-    rand.y = fract(sin(rand.x)*55751.6475574);
-    rand.z = fract(sin(rand.y)*68446.4894964);
-    return rand;
-}
-
-Hit miss(Ray ray){
-    Hit hit;
-    hit.hitDist = -1;
-    return hit;
-};
-
 bool getVoxel(ivec3 c) {
+    // check for voxel in grid
     if (0<c.x && c.x<number && 0<c.y && c.y<number && 0<c.z && c.z<number)
 	    return S[number*number*c.z+number*c.y+c.x]==1;
 }
 
 void main()
 {
-    vec3 color = vec3(0.0f);
+    // variables init
+    vec3 lightSource = vec3(number/2,500,number/2);
     vec2 pos = (gl_FragCoord.xy/ vec2(1280,720))*2.0f-1.0f;
     vec4 target = inverse(projection) * vec4(pos,1.0f,1.0f);
     vec3 rayDir = vec3(inverse(view)*vec4(normalize(target.xyz/target.w),0));
@@ -63,12 +45,9 @@ void main()
     Ray ray;
     ray.origin = rayOrigin;
     ray.direction = rayDir;
-    int bounces = 0;
-
     float destroyR = pow(float(scroll)/100,2);
-
+    
     bvec3 mask;
-
     ivec3 map = ivec3(floor(ray.origin+0.f));
     vec3 deltaDist = abs(1/ray.direction);
     ivec3 _step = ivec3(sign(rayDir));
@@ -76,38 +55,22 @@ void main()
 
     bool found = false;
 
+    // branchless DDA from www.shadertoy.com/view/4dX3zl
     for(int i = 0; i< 1000; i++){
-        if (sideDist.x < sideDist.y) {
-			if (sideDist.x < sideDist.z) {
-				sideDist.x += deltaDist.x;
-				map.x += _step.x;
-				mask = bvec3(true, false, false);
-			}
-			else {
-				sideDist.z += deltaDist.z;
-				map.z += _step.z;
-				mask = bvec3(false, false, true);
-			}
-		}
-		else {
-			if (sideDist.y < sideDist.z) {
-				sideDist.y += deltaDist.y;
-				map.y += _step.y;
-				mask = bvec3(false, true, false);
-			}
-			else {
-				sideDist.z += deltaDist.z;
-				map.z += _step.z;
-				mask = bvec3(false, false, true);
-			}
-		}
+        mask = lessThanEqual(sideDist.xyz, min(sideDist.yzx, sideDist.zxy));
+        sideDist += vec3(mask) * deltaDist;
+	    map += ivec3(vec3(mask)) * _step;
+        
         if(getVoxel(map)){
             found = true;
-            
-            
             break;
         }
     }
+
+    // applying colors
+    vec3 color = vec3(0.6f,0.7f,0.9f);
+    color += 0.4*rayDir.y;
+
     if(found){
         if(mouse == 1 && dot(pos,pos)<destroyR){
             S[number*number*map.z+number*map.y+map.x] = 0;
@@ -117,19 +80,22 @@ void main()
         }
         if (mask.x) {
             
-		    color = vec3(0.5);
+		    color = vec3(max(0,dot(vec3(1,0,0),normalize(lightSource-map))));
+            color -= 0.8*rayDir.y;
 	    }
 	    if (mask.y) {
 
-		    color = vec3(1.0);
+		    color = vec3(max(0,dot(vec3(0,1,0),normalize(lightSource-map))));
+            color -= 1*rayDir.y;
 	    }
 	    if (mask.z) {
 
-		    color = vec3(0.75);
+		    color = vec3(max(0,dot(vec3(0,0,1),normalize(lightSource-map))));;
+            color -= 0.8*rayDir.y;
 	    }
+        
     }
     
-    FragColor = vec4(0,color.x,0, 1.0f);
-
-    
+    // output pixel frangment
+    FragColor = vec4(color, 1.0f);
 }

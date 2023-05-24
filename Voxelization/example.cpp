@@ -1,6 +1,7 @@
 ﻿#include "libs/R/R/R.h"
 int mouse = 0;
-int scroll = 0.f;
+int scroll = 16.f;
+
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
@@ -50,19 +51,12 @@ int main(void)
 
     std::vector<float> S;
     int number = 400;
-    // noise glm::fract(sin(glm::dot(glm::vec3(x,y,z), glm::vec3(12.9898, 78.233,78))) * 43758.5453123)<0.5f
     for (int x = 0; x < number; x++)
         for (int y = 0; y < number; y++)
             for (int z = 0; z < number; z++) {
-                /*if (number*0.3<z and z<number*0.6 and number * 0.3 < y and y < number * 0.6 and number * 0.3 < x and x < number * 0.6) {
-                    S.push_back(1);
-                }
-                else {
-                    S.push_back(0);
-                }*/
                 S.push_back(1);
+                }
 
-            }
 
     R::ShaderStorageBuffer SSBO(sizeof(float)*number*number*number);
     SSBO.data(0, S, sizeof(float) * number * number * number,5);
@@ -129,14 +123,8 @@ int main(void)
 
         R::renderer::draw(va,ib,shaders);
 
-        //ImGui::Text(std::to_string(1/R::dt).c_str());
+        ImGui::Text(std::to_string(1/R::dt).c_str());
         ImGui::Text(std::to_string(scroll).c_str());
-        ImGui::Text(std::to_string(cam.pos.x).c_str());
-        ImGui::Text(std::to_string(cam.pos.y).c_str());
-        ImGui::Text(std::to_string(cam.pos.z).c_str());
-        ImGui::Text(std::to_string(cam.front.x).c_str());
-        ImGui::Text(std::to_string(cam.front.y).c_str());
-        ImGui::Text(std::to_string(cam.front.z).c_str());
 
         R::win::drawGui();
         R::win::display();
